@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/cache@v2
         with:
-          path: '**/node_modules'
+          path: "**/node_modules"
           key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
       - name: Yarn
@@ -45,7 +45,7 @@ jobs:
 
       - uses: actions/cache@v2
         with:
-          path: '**/node_modules'
+          path: "**/node_modules"
           key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
       - name: Yarn
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        project: ['jest', 'sinon', 'adapters.nestjs', 'core']
+        project: ["sinon", "adapters.nestjs", "core"]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -67,11 +67,11 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '16.18.0'
+          node-version: "16.18.0"
 
       - uses: actions/cache@v2
         with:
-          path: '**/node_modules'
+          path: "**/node_modules"
           key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
       - name: Yarn
@@ -87,7 +87,7 @@ jobs:
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          reporter: 'jest-junit'
+          reporter: "jest-junit"
           name: Tests Results (${{ matrix.project }})
           path: test-reports/${{ matrix.project }}.xml
           fail-on-error: false
@@ -97,6 +97,60 @@ jobs:
         with:
           name: codecov-umbrella
           flags: jest,sinon,adapters.nestjs,core
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          directory: coverage
+          verbose: true
+
+  test-jest:
+    name: Test (jest)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        jestVersion: ["^26.0.0", "^27.0.0", "^28.0.0", "^29.0.0"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16.18.0"
+
+      - uses: actions/cache@v2
+        with:
+          path: "**/node_modules"
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Yarn
+        run: yarn --frozen-lockfile
+
+      - name: Specific Jest version
+        run: cd packages/testbeds/jest && yarn add -D jest@${{ matrix.jestVersion }}
+
+      - name: Specific Jest version types
+        run: yarn add @types/jest@${{ matrix.jestVersion }} --ignore-workspace-root-check
+
+      - name: Test
+        run: yarn jest --selectProjects jest --coverage --verbose
+        env:
+          COVERAGE_REPORT_BASE_FILE_NAME: jest
+          JEST_JUNIT_OUTPUT_NAME: jest${{ matrix.jestVersion }}.xml
+
+      - name: Tests Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          reporter: "jest-junit"
+          name: Tests Results (jest ${{ matrix.jestVersion }})
+          path: test-reports/jest${{ matrix.jestVersion }}.xml
+          fail-on-error: false
+
+      - name: Upload Report to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          name: codecov-umbrella
+          flags: jest
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
           directory: coverage
